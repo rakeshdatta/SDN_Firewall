@@ -26,7 +26,7 @@ class Firewall (EventMixin):
         self.SMTP_PORT     = 25
 
 
-    def pushRuleToSwitch (self, src, dst, ip_proto, app_proto):
+    def pushRuleToSwitch (self, src, dst, ip_proto, app_proto, action):
         # creating a switch flow table entry
         msg = of.ofp_flow_mod()
         msg.priority = 20
@@ -37,8 +37,7 @@ class Firewall (EventMixin):
 
         # set packet ethernet type as IP
         match.dl_type = 0x800;
-
-        #IP protocol match
+P protocol match
         if ip_proto == "tcp":
            match.nw_proto = pkt.ipv4.TCP_PROTOCOL
         if ip_proto == "udp":
@@ -65,23 +64,54 @@ class Firewall (EventMixin):
         match.nw_src = IPAddr(src)
         match.nw_dst = IPAddr(dst)
         msg.match = match
-        self.connection.send(msg)
+
+        if action == "delete":
+                msg.command=of.OFPFC_DELETE
+                msg.flags = of.OFPFF_SEND_FLOW_REM
+                self.connection.send(msg)
+        elif action == "add":
+                self.connection.send(msg)
+
 
         # flow rule for src:host2 dst:host1
         match.nw_src = IPAddr(dst)
         match.nw_dst = IPAddr(src)
         msg.match = match
-        self.connection.send(msg)
+
+        if action == "delete":
+                msg.command=of.OFPFC_DELETE
+                msg.flags = of.OFPFF_SEND_FLOW_REM
+                self.connection.send(msg)
+        elif action == "add":
+                self.connection.send(msg)
 
 
-
-    def AddRule (self, src=0, dst=0, ip_proto=0, app_proto=0, value=True):
+    def addFirewallRule (self, src=0, dst=0, ip_proto=0, app_proto=0, value=True):
         if (src, dst, ip_proto, app_proto) in self.firewall:
             log.warning("Rule exists: drop: src:%s dst:%s ip_proto:%s app_proto:%s", src, dst, ip_proto, app_proto)
         else:
             self.firewall[(src, dst, ip_proto, app_proto)]=value
-            self.pushRuleToSwitch(src, dst, ip_proto, app_proto)
+            self.pushRuleToSwitch(src, dst, ip_proto, app_proto, "add")
             log.info("Rule added: drop: src:%s dst:%s ip_proto:%s app_proto:%s", src, dst, ip_proto, app_proto)
+
+
+    def delFirewallRule (self, src=0, dst=0, ip_proto=0, app_proto=0, value=True):
+        if (src, dst, ip_proto, app_proto) in self.firewall:
+            del self.firewall[(src, dst, ip_proto, app_proto)]
+            self.pushRuleToSwitch(src, dst, ip_proto, app_proto, "delete")
+            log.info("Rule Deleted: drop: src:%s dst:%s ip_proto:%s app_proto:%s", src, dst, ip_proto, app_proto)
+        else:
+            log.error("Rule doesn't exist: drop: src:%s dst:%s ip_proto:%s app_proto:%s", src, dst, ip_proto, app_proto)
+
+
+    def showFirewallRules (self):
+        log.info("")
+        log.info("")
+        log.info("!!! Displaying Firewall Rules !!!")
+        rule_num = 1
+        for item in self.firewall:
+             log.info("Rule %s: src:%s dst:%s ip_proto:%s app_proto:%s", rule_num, item[0], item[1], item[2], item[3])
+             rule_num += 1
 
 
     def _handle_ConnectionUp (self, event):
@@ -93,9 +123,11 @@ class Firewall (EventMixin):
         for rule in rulesIterator:
             print rule[0]
             if rule[0] != "id" :
-                self.AddRule(rule[1], rule[2], rule[3], rule[4])
+                self.addFirewallRule(rule[1], rule[2], rule[3], rule[4])
 
-
+        self.showFirewallRules()
+        log.info("")
+        log.info("")
         log.info("Firewall rules pushed on the switch id: %s", dpidToStr(event.dpid))
 
 def launch ():
