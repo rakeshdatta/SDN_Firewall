@@ -1,0 +1,13 @@
+#!/bin/bash
+
+if [ "$1" == "start" ]
+then
+   echo "INFO: Starting the controller"
+   sudo ./pox.py forwarding.l2_learning  pox.firewall.firewall &
+fi
+
+if [ "$1" == "stop" ]
+then
+   echo "INFO: Stopping the controller"
+   sudo kill $(ps aux | grep 'pox.py *' | awk '{print $2}')
+fi
