@@ -12,15 +12,21 @@ log = core.getLogger()
 aclSrc = "%s/pox/pox/firewall/nw_policies.csv" % os.environ[ 'HOME' ]
 
 
-
 class Firewall (EventMixin):
 
     def __init__ (self):
         self.listenTo(core.openflow)
         self.firewall = {}
-        log.info("Starting Firewall")
+        log.info("Starting SDN Firewall")
 
-    def pushRuleToSwitch (self, src, dst, proto, duration = 0):
+
+        self.FTP_PORT      = 21
+        self.HTTP_PORT     = 80
+        self.TELNET_PORT   = 23
+        self.SMTP_PORT     = 25
+
+
+    def pushRuleToSwitch (self, src, dst, ip_proto, app_proto):
         # creating a switch flow table entry
         msg = of.ofp_flow_mod()
         msg.priority = 20
@@ -32,13 +38,27 @@ class Firewall (EventMixin):
         # set packet ethernet type as IP
         match.dl_type = 0x800;
 
-        # IP protocol match
-        if proto == "icmp":
-           match.nw_proto = pkt.ipv4.ICMP_PROTOCOL
-        elif proto == "tcp":
+        #IP protocol match
+        if ip_proto == "tcp":
            match.nw_proto = pkt.ipv4.TCP_PROTOCOL
-        elif proto == "udp":
+        if ip_proto == "udp":
            match.nw_proto = pkt.ipv4.UDP_PROTOCOL
+        elif ip_proto == "icmp":
+           match.nw_proto = pkt.ipv4.ICMP_PROTOCOL
+        elif ip_proto == "igmp":
+           match.nw_proto = pkt.ipv4.IGMP_PROTOCOL
+
+
+
+        #Application protocol match
+        if app_proto == "ftp":
+           match.tp_dst = self.FTP_PORT
+        elif app_proto == "http":
+           match.tp_dst = self.HTTP_PORT
+        elif app_proto == "telnet":
+           match.tp_dst = self.TELNET_PORT
+        elif app_proto == "smtp":
+           match.tp_dst = self.SMTP_PORT
 
 
         # flow rule for src:host1 dst:host2
@@ -55,13 +75,13 @@ class Firewall (EventMixin):
 
 
 
-    def AddRule (self, src=0, dst=0, proto=0, value=True):
-        if (src, dst, proto) in self.firewall:
-            log.warning("Rule exists: drop: src %s - dst %s - proto %s", src, dst, proto)
+    def AddRule (self, src=0, dst=0, ip_proto=0, app_proto=0, value=True):
+        if (src, dst, ip_proto, app_proto) in self.firewall:
+            log.warning("Rule exists: drop: src:%s dst:%s ip_proto:%s app_proto:%s", src, dst, ip_proto, app_proto)
         else:
-            self.firewall[(src, dst, proto)]=value
-            self.pushRuleToSwitch(src, dst, proto, 10000)
-            log.info("Rule added: drop: src %s - dst %s - proto %s", src, dst, proto)
+            self.firewall[(src, dst, ip_proto, app_proto)]=value
+            self.pushRuleToSwitch(src, dst, ip_proto, app_proto)
+            log.info("Rule added: drop: src:%s dst:%s ip_proto:%s app_proto:%s", src, dst, ip_proto, app_proto)
 
 
     def _handle_ConnectionUp (self, event):
@@ -73,7 +93,7 @@ class Firewall (EventMixin):
         for rule in rulesIterator:
             print rule[0]
             if rule[0] != "id" :
-                self.AddRule(rule[1], rule[2], rule[3])
+                self.AddRule(rule[1], rule[2], rule[3], rule[4])
 
 
         log.info("Firewall rules pushed on the switch id: %s", dpidToStr(event.dpid))
