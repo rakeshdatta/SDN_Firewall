@@ -37,7 +37,8 @@ class Firewall (EventMixin):
 
         # set packet ethernet type as IP
         match.dl_type = 0x800;
-P protocol match
+        
+        #IP protocol match
         if ip_proto == "tcp":
            match.nw_proto = pkt.ipv4.TCP_PROTOCOL
         if ip_proto == "udp":
