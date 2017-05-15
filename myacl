@@ -3,11 +3,20 @@
 if [ "$1" == "start" ]
 then
    echo "INFO: Starting the controller"
-   sudo ./pox.py forwarding.l2_learning  pox.firewall.firewall &
-fi
+   ./pox.py forwarding.l2_learning  pox.firewall.main &
 
-if [ "$1" == "stop" ]
+elif [ "$1" == "restart" ]
 then
    echo "INFO: Stopping the controller"
    sudo kill $(ps aux | grep 'pox.py *' | awk '{print $2}')
+   echo "INFO: Starting the controller"
+   ./pox.py forwarding.l2_learning  pox.firewall.main &
+
+elif [ "$1" == "stop" ]
+then
+   echo "INFO: Stopping the controller"
+   sudo kill $(ps aux | grep 'pox.py *' | awk '{print $2}')
+
+else
+   echo "ERROR: Unknown option"
 fi
