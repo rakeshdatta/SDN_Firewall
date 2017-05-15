@@ -1,4 +1,4 @@
-id,host1,host2,ip_proto,app_proto
-1,10.0.0.1,10.0.0.2,udp,any
-2,10.0.0.2,10.0.0.3,icmp,any
-3,10.0.0.1,10.0.0.3,tcp,http
+id,host1,host2,ip_proto,app_proto,duration
+1,10.0.0.1,10.0.0.2,udp,any,10000
+2,10.0.0.2,10.0.0.3,icmp,any,10000
+3,10.0.0.1,10.0.0.3,tcp,http,10000
