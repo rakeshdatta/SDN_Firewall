@@ -42,7 +42,7 @@ class Firewall (EventMixin):
         d = int(duration)
         if d == 0:
            action = "del"
-                else:
+        else:
            action = "add"
 
         if not isinstance(d, tuple):
