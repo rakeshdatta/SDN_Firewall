@@ -126,7 +126,8 @@ class Firewall (EventMixin):
              if item[4] != "0":
                 log.info("Rule %s: src:%s dst:%s ip_proto:%s app_proto:%s", rule_num, item[0], item[1], item[2], item[3])
              rule_num += 1
-        def _handle_ConnectionUp (self, event):
+            
+    def _handle_ConnectionUp (self, event):
         acl  = open(aclSrc, "rb")
 
         self.connection = event.connection
