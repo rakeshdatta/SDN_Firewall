@@ -26,7 +26,7 @@ class Firewall (EventMixin):
         self.SMTP_PORT     = 25
 
 
-    def pushRuleToSwitch (self, src, dst, ip_proto, app_proto, action):
+    def pushRuleToSwitch (self, src, dst, ip_proto, app_proto, duration):
         # creating a switch flow table entry
         msg = of.ofp_flow_mod()
         msg.priority = 20
@@ -37,8 +37,20 @@ class Firewall (EventMixin):
 
         # set packet ethernet type as IP
         match.dl_type = 0x800;
-        
-        #IP protocol match
+
+        # Setting the duration of the rule
+        d = int(duration)
+        if d == 0:
+           action = "del"
+                else:
+           action = "add"
+
+        if not isinstance(d, tuple):
+            d = (d,d)
+        msg.idle_timeout = d[0]
+        msg.hard_timeout = d[1]
+
+        # IP protocol match
         if ip_proto == "tcp":
            match.nw_proto = pkt.ipv4.TCP_PROTOCOL
         if ip_proto == "udp":
@@ -66,7 +78,7 @@ class Firewall (EventMixin):
         match.nw_dst = IPAddr(dst)
         msg.match = match
 
-        if action == "delete":
+        if action == "del":
                 msg.command=of.OFPFC_DELETE
                 msg.flags = of.OFPFF_SEND_FLOW_REM
                 self.connection.send(msg)
@@ -87,19 +99,19 @@ class Firewall (EventMixin):
                 self.connection.send(msg)
 
 
-    def addFirewallRule (self, src=0, dst=0, ip_proto=0, app_proto=0, value=True):
-        if (src, dst, ip_proto, app_proto) in self.firewall:
-            log.warning("Rule exists: drop: src:%s dst:%s ip_proto:%s app_proto:%s", src, dst, ip_proto, app_proto)
+    def addFirewallRule (self, src=0, dst=0, ip_proto=0, app_proto=0, duration = 0, value=True):
+        if (src, dst, ip_proto, app_proto, duration) in self.firewall:
+            log.warning("Rule exists: drop: src:%s dst:%s ip_proto:%s app_proto:%s duration:%s", src, dst, ip_proto, app_proto, duration)
         else:
-            self.firewall[(src, dst, ip_proto, app_proto)]=value
-            self.pushRuleToSwitch(src, dst, ip_proto, app_proto, "add")
-            log.info("Rule added: drop: src:%s dst:%s ip_proto:%s app_proto:%s", src, dst, ip_proto, app_proto)
+            self.firewall[(src, dst, ip_proto, app_proto, duration)]=value
+            self.pushRuleToSwitch(src, dst, ip_proto, app_proto, duration)
+            log.info("Rule added: drop: src:%s dst:%s ip_proto:%s app_proto:%s duration:%s", src, dst, ip_proto, app_proto, duration)
 
 
-    def delFirewallRule (self, src=0, dst=0, ip_proto=0, app_proto=0, value=True):
+    def delFirewallRule (self, src=0, dst=0, ip_proto=0, app_proto=0, duration = 0, value=True):
         if (src, dst, ip_proto, app_proto) in self.firewall:
             del self.firewall[(src, dst, ip_proto, app_proto)]
-            self.pushRuleToSwitch(src, dst, ip_proto, app_proto, "delete")
+            self.pushRuleToSwitch(src, dst, ip_proto, app_proto, duration)
             log.info("Rule Deleted: drop: src:%s dst:%s ip_proto:%s app_proto:%s", src, dst, ip_proto, app_proto)
         else:
             log.error("Rule doesn't exist: drop: src:%s dst:%s ip_proto:%s app_proto:%s", src, dst, ip_proto, app_proto)
@@ -111,11 +123,10 @@ class Firewall (EventMixin):
         log.info("!!! Displaying Firewall Rules !!!")
         rule_num = 1
         for item in self.firewall:
-             log.info("Rule %s: src:%s dst:%s ip_proto:%s app_proto:%s", rule_num, item[0], item[1], item[2], item[3])
+             if item[4] != "0":
+                log.info("Rule %s: src:%s dst:%s ip_proto:%s app_proto:%s", rule_num, item[0], item[1], item[2], item[3])
              rule_num += 1
-
-
-    def _handle_ConnectionUp (self, event):
+        def _handle_ConnectionUp (self, event):
         acl  = open(aclSrc, "rb")
 
         self.connection = event.connection
@@ -124,7 +135,7 @@ class Firewall (EventMixin):
         for rule in rulesIterator:
             print rule[0]
             if rule[0] != "id" :
-                self.addFirewallRule(rule[1], rule[2], rule[3], rule[4])
+                self.addFirewallRule(rule[1], rule[2], rule[3], rule[4], rule[5])
 
         self.showFirewallRules()
         log.info("")
@@ -134,3 +145,5 @@ class Firewall (EventMixin):
 def launch ():
     core.registerNew(Firewall)
 
+
+        
