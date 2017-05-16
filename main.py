@@ -74,8 +74,10 @@ class Firewall (EventMixin):
 
 
         # flow rule for src:host1 dst:host2
-        match.nw_src = IPAddr(src)
-        match.nw_dst = IPAddr(dst)
+        if src != "any":
+	   match.nw_src = IPAddr(src)
+        if dst != "any":
+           match.nw_dst = IPAddr(dst)
         msg.match = match
 
         if action == "del":
@@ -87,8 +89,10 @@ class Firewall (EventMixin):
 
 
         # flow rule for src:host2 dst:host1
-        match.nw_src = IPAddr(dst)
-        match.nw_dst = IPAddr(src)
+        if dst != "any":
+           match.nw_src = IPAddr(dst)
+        if src != "any":
+           match.nw_dst = IPAddr(src)
         msg.match = match
 
         if action == "delete":
